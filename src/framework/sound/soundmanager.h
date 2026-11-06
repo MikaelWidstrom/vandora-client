@@ -136,6 +136,8 @@ public:
     bool isEaxEnabled();
     bool loadClientFiles(const std::string& directory);
     std::string getAudioFileNameById(int32_t audioFileId);
+    // Vandora: spela en ljudeffekt fran Tibias ljudbank (id fran servern), gain 0-1
+    void playClientSoundEffect(uint32_t effectId, float gain = 1.0f);
 
     void preload(std::string filename);
     SoundSourcePtr play(const std::string& filename, float fadetime = 0, float gain = 0, float pitch = 0);
@@ -165,6 +167,7 @@ private:
     std::map<uint32_t, ClientLocationAmbient> m_clientAmbientEffects;
     std::map<uint32_t, ClientItemAmbient> m_clientItemAmbientEffects;
     std::map<uint32_t, ClientMusic> m_clientMusic;
+    std::string m_clientSoundsDir;
 
     std::vector<SoundSourcePtr> m_sources;
     bool m_audioEnabled{ true };

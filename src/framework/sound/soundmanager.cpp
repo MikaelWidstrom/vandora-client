@@ -517,6 +517,7 @@ bool SoundManager::loadFromProtobuf(const std::string& directory, const std::str
 
 bool SoundManager::loadClientFiles(const std::string& directory)
 {
+    m_clientSoundsDir = directory;
     // find catalog from json file
     try {
         json document = json::parse(g_resources.readFileContents(g_resources.resolvePath(g_resources.guessFilePath(directory + "catalog-sound", "json"))));
@@ -536,6 +537,53 @@ bool SoundManager::loadClientFiles(const std::string& directory)
 
         return false;
     }
+}
+
+// Vandora: ljudeffekter fran servern (slag, spells, dod m.m.) spelas pa effekt-kanalen.
+// Flera ljud kan spelas samtidigt, darfor anvands inte SoundChannel::play (den stoppar forra ljudet).
+void SoundManager::playClientSoundEffect(const uint32_t effectId, const float gain)
+{
+    if (!isAudioEnabled() || effectId == 0)
+        return;
+
+    const auto& channel = getChannel(3); // SoundChannels.Effect
+    if (!channel || !channel->isEnabled() || channel->getGain() <= 0.0f)
+        return;
+
+    // skydd mot for manga ljud samtidigt
+    if (m_sources.size() >= 48)
+        return;
+
+    const auto it = m_clientSoundEffects.find(effectId);
+    if (it == m_clientSoundEffects.end())
+        return;
+
+    const auto& effect = it->second;
+    uint32_t audioFileId = effect.soundId;
+    if (!effect.randomSoundId.empty()) {
+        const int index = stdext::random_range(0, static_cast<int>(effect.randomSoundId.size()) - 1);
+        audioFileId = effect.randomSoundId[index];
+    }
+    if (audioFileId == 0)
+        return;
+
+    const auto& fileName = getAudioFileNameById(audioFileId);
+    if (fileName.empty())
+        return;
+
+    float pitch = 1.0f;
+    if (effect.pitchMax > 0.0f) {
+        pitch = effect.pitchMin < effect.pitchMax ? stdext::random_range(effect.pitchMin, effect.pitchMax) : effect.pitchMax;
+        if (pitch <= 0.0f)
+            pitch = 1.0f;
+    }
+
+    float volume = effect.volumeMax > 0.0f ? effect.volumeMax : 1.0f;
+    volume = std::clamp(volume * gain * channel->getGain(), 0.0f, 1.0f);
+    if (volume <= 0.01f)
+        return;
+
+    play(m_clientSoundsDir + fileName, 0, volume, pitch);
 }
 
 std::string SoundManager::getAudioFileNameById(int32_t audioFileId)

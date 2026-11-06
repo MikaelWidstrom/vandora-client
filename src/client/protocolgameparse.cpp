@@ -43,6 +43,29 @@
 #include "paperdoll.h"
 #include <fmt/format.h>
 #include <framework/util/stats.h>
+#ifdef FRAMEWORK_SOUND
+#include "framework/sound/soundmanager.h"
+#endif
+
+namespace
+{
+    // Vandora: spela ljudeffekter fran servern. Tystare ju langre bort fran spelaren.
+    void playVandoraSoundEffect([[maybe_unused]] const Position& pos, [[maybe_unused]] const uint16_t soundId)
+    {
+#ifdef FRAMEWORK_SOUND
+        const auto& player = g_game.getLocalPlayer();
+        float gain = 1.0f;
+        if (player) {
+            const auto& playerPos = player->getPosition();
+            if (playerPos.z != pos.z)
+                gain = 0.5f;
+            const int distance = std::max(std::abs(playerPos.x - pos.x), std::abs(playerPos.y - pos.y));
+            gain *= std::max(0.25f, 1.0f - distance * 0.08f);
+        }
+        g_sounds.playClientSoundEffect(soundId, gain);
+#endif
+    }
+}
 
 void ProtocolGame::parseMessage(const InputMessagePtr& msg)
 {
@@ -1960,14 +1983,16 @@ void ProtocolGame::parseMagicEffect(const InputMessagePtr& msg)
 
                 case Otc::MAGIC_EFFECTS_CREATE_SOUND_MAIN_EFFECT: {
                     msg->getU8(); // Source
-                    msg->getU16(); // Sound ID
+                    const uint16_t soundId = msg->getU16(); // Sound ID
+                    playVandoraSoundEffect(pos, soundId); // Vandora
                     break;
                 }
 
                 case Otc::MAGIC_EFFECTS_CREATE_SOUND_SECONDARY_EFFECT: {
                     msg->getU8(); // ENUM
                     msg->getU8(); // Source
-                    msg->getU16(); // Sound ID
+                    const uint16_t soundId = msg->getU16(); // Sound ID
+                    playVandoraSoundEffect(pos, soundId); // Vandora
                     break;
                 }
                 default:
