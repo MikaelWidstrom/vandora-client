@@ -834,6 +834,9 @@ const TexturePtr& ThingType::getTexture(const int animationPhase)
         bool async = g_app.isLoadingAsyncTexture();
         if (g_game.isUsingProtobuf() && g_drawPool.getCurrentType() == DrawPoolType::FOREGROUND)
             async = false;
+        // Vandora: creatures laddas direkt (inte i bakgrunden), annars ritas maskfargerna som bla rutor
+        if (m_category == ThingCategoryCreature)
+            async = false;
 
         if (!async) {
             loadTexture(animationPhase);
