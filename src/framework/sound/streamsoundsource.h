@@ -50,6 +50,9 @@ public:
 
     void downMix(DownMix downMix);
 
+    // Vandora: strommade ljud loopas av koden sjalv (inte AL_LOOPING)
+    void setLooping(const bool looping) override { m_looping = looping; }
+
     void update() override;
 
 private:

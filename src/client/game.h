@@ -109,7 +109,7 @@ protected:
                                 const std::vector<std::tuple<uint16_t, std::string>>& shaderList);
 
     // npc trade
-    static void processOpenNpcTrade(const std::vector<std::tuple<ItemPtr, std::string, uint32_t, uint32_t, uint32_t>>& items);
+    static void processOpenNpcTrade(const std::vector<std::tuple<ItemPtr, std::string, uint32_t, uint32_t, uint32_t>>& items, uint16_t currencyId = 0, const std::string& currencyName = ""); // Vandora: valuta
     static void processPlayerGoods(uint64_t money, const std::vector<std::tuple<ItemPtr, uint16_t>>& goods);
     static void processCloseNpcTrade();
 

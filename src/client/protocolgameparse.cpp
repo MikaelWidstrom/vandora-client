@@ -50,7 +50,7 @@
 namespace
 {
     // Vandora: spela ljudeffekter fran servern. Tystare ju langre bort fran spelaren.
-    void playVandoraSoundEffect([[maybe_unused]] const Position& pos, [[maybe_unused]] const uint16_t soundId)
+    void playVandoraSoundEffect([[maybe_unused]] const Position& pos, [[maybe_unused]] const uint16_t soundId, [[maybe_unused]] const uint8_t source = 0)
     {
 #ifdef FRAMEWORK_SOUND
         const auto& player = g_game.getLocalPlayer();
@@ -62,7 +62,7 @@ namespace
             const int distance = std::max(std::abs(playerPos.x - pos.x), std::abs(playerPos.y - pos.y));
             gain *= std::max(0.25f, 1.0f - distance * 0.08f);
         }
-        g_sounds.playClientSoundEffect(soundId, gain);
+        g_sounds.playClientSoundEffect(soundId, gain, source);
 #endif
     }
 }
@@ -1824,9 +1824,11 @@ void ProtocolGame::parseOpenNpcTrade(const InputMessagePtr& msg)
         msg->getString(); // npcName
     }
 
+    uint16_t currencyId = 0; // Vandora: valutan sparas och skickas till trade-fonstret
+    std::string currencyName;
     if (g_game.getClientVersion() >= 1281) {
-        msg->getU16(); // currency
-        msg->getString(); // currency name
+        currencyId = msg->getU16(); // currency
+        currencyName = msg->getString(); // currency name
     }
 
     const uint16_t listCount = g_game.getClientVersion() >= 900 ? msg->getU16() : msg->getU8();
@@ -1851,7 +1853,7 @@ void ProtocolGame::parseOpenNpcTrade(const InputMessagePtr& msg)
         items.emplace_back(item, itemName, itemWeight, itemBuyPrice, itemSellPrice);
     }
 
-    g_game.processOpenNpcTrade(items);
+    g_game.processOpenNpcTrade(items, currencyId, currencyName);
 }
 
 void ProtocolGame::parsePlayerGoods(const InputMessagePtr& msg) const
@@ -1982,17 +1984,17 @@ void ProtocolGame::parseMagicEffect(const InputMessagePtr& msg)
                 }
 
                 case Otc::MAGIC_EFFECTS_CREATE_SOUND_MAIN_EFFECT: {
-                    msg->getU8(); // Source
+                    const uint8_t source = msg->getU8(); // Source
                     const uint16_t soundId = msg->getU16(); // Sound ID
-                    playVandoraSoundEffect(pos, soundId); // Vandora
+                    playVandoraSoundEffect(pos, soundId, source); // Vandora
                     break;
                 }
 
                 case Otc::MAGIC_EFFECTS_CREATE_SOUND_SECONDARY_EFFECT: {
                     msg->getU8(); // ENUM
-                    msg->getU8(); // Source
+                    const uint8_t source = msg->getU8(); // Source
                     const uint16_t soundId = msg->getU16(); // Sound ID
-                    playVandoraSoundEffect(pos, soundId); // Vandora
+                    playVandoraSoundEffect(pos, soundId, source); // Vandora
                     break;
                 }
                 default:
@@ -2056,7 +2058,14 @@ void ProtocolGame::parseAnthem(const InputMessagePtr& msg)
 {
     const uint8_t type = msg->getU8();
     if (type <= 2) {
-        msg->getU16(); // Anthem id
+        [[maybe_unused]] const uint16_t id = msg->getU16(); // Anthem id
+#ifdef FRAMEWORK_SOUND
+        // Vandora: 0 = omradesljud (ambient), 1 = musik
+        if (type == 0)
+            g_sounds.playClientAmbient(id);
+        else if (type == 1)
+            g_sounds.playClientMusic(id);
+#endif
     }
 }
 

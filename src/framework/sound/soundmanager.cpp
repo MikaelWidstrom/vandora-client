@@ -149,6 +149,16 @@ void SoundManager::poll()
         it.second->update();
     }
 
+    // Vandora: slumpade extraljud i omradesljudet (faglar, vind ...)
+    for (size_t i = 0; i < m_ambientDelayed.size(); ++i) {
+        if (now >= m_ambientDelayed[i].second) {
+            m_ambientDelayed[i].second = now + static_cast<ticks_t>(m_ambientDelayedInterval[i]) * 1000;
+            const auto& ambientChannel = getChannel(2);
+            if (ambientChannel->isEnabled())
+                playClientSoundEffect(m_ambientDelayed[i].first, ambientChannel->getGain(), 0);
+        }
+    }
+
     if (m_context) {
         alcProcessContext(m_context);
     }
@@ -541,9 +551,20 @@ bool SoundManager::loadClientFiles(const std::string& directory)
 
 // Vandora: ljudeffekter fran servern (slag, spells, dod m.m.) spelas pa effekt-kanalen.
 // Flera ljud kan spelas samtidigt, darfor anvands inte SoundChannel::play (den stoppar forra ljudet).
-void SoundManager::playClientSoundEffect(const uint32_t effectId, const float gain)
+void SoundManager::setEffectSourceEnabled(const int source, const bool enabled)
 {
-    if (!isAudioEnabled() || effectId == 0)
+    if (source >= 0 && source < 4)
+        m_effectSourceEnabled[source] = enabled;
+}
+
+bool SoundManager::isEffectSourceEnabled(const int source)
+{
+    return source < 0 || source >= 4 || m_effectSourceEnabled[source];
+}
+
+void SoundManager::playClientSoundEffect(const uint32_t effectId, const float gain, const uint8_t source)
+{
+    if (!isAudioEnabled() || effectId == 0 || !isEffectSourceEnabled(source))
         return;
 
     const auto& channel = getChannel(3); // SoundChannels.Effect
@@ -584,6 +605,138 @@ void SoundManager::playClientSoundEffect(const uint32_t effectId, const float ga
         return;
 
     play(m_clientSoundsDir + fileName, 0, volume, pitch);
+}
+
+// Vandora: omradesljud. Loopas pa Ambient-kanalen (2). Slumpade extraljud spelas med jamna mellanrum.
+void SoundManager::playClientAmbient(const uint32_t ambientId)
+{
+    if (ambientId == m_currentAmbientId)
+        return;
+    m_currentAmbientId = ambientId;
+    m_ambientDelayed.clear();
+    m_ambientDelayedInterval.clear();
+
+    const auto& channel = getChannel(2); // SoundChannels.Ambient
+    channel->stop(1.5f);
+
+    const auto it = m_clientAmbientEffects.find(ambientId);
+    if (ambientId == 0 || it == m_clientAmbientEffects.end())
+        return;
+
+    const auto& fileName = getAudioFileNameById(it->second.loopedAudioFileId);
+    if (!fileName.empty())
+        channel->enqueue(m_clientSoundsDir + fileName, 1.5f);
+
+    const ticks_t now = g_clock.millis();
+    for (const auto& [effectId, delay] : it->second.delayedSoundEffects) {
+        const uint32_t seconds = std::max<uint32_t>(delay, 5);
+        m_ambientDelayed.emplace_back(effectId, now + static_cast<ticks_t>(stdext::random_range(1, static_cast<int>(seconds))) * 1000);
+        m_ambientDelayedInterval.emplace_back(seconds);
+    }
+}
+
+// Vandora: musik. Loopas pa Music-kanalen (1).
+void SoundManager::playClientMusic(const uint32_t musicId)
+{
+    if (musicId == m_currentMusicId)
+        return;
+    m_currentMusicId = musicId;
+
+    const auto& channel = getChannel(1); // SoundChannels.Music
+    channel->stop(2.0f);
+
+    const auto it = m_clientMusic.find(musicId);
+    if (musicId == 0 || it == m_clientMusic.end())
+        return;
+
+    const auto& fileName = getAudioFileNameById(it->second.audioFileId);
+    if (!fileName.empty())
+        channel->enqueue(m_clientSoundsDir + fileName, 2.0f);
+}
+
+std::vector<uint32_t> SoundManager::getItemAmbientClientIds()
+{
+    std::vector<uint32_t> ids;
+    for (const auto& [id, ambient] : m_clientItemAmbientEffects) {
+        ids.insert(ids.end(), ambient.clientIds.begin(), ambient.clientIds.end());
+    }
+    std::sort(ids.begin(), ids.end());
+    ids.erase(std::unique(ids.begin(), ids.end()), ids.end());
+    return ids;
+}
+
+void SoundManager::stopItemAmbients()
+{
+    for (auto& [id, entry] : m_itemAmbientSources) {
+        if (entry.second)
+            entry.second->stop();
+    }
+    m_itemAmbientSources.clear();
+}
+
+// Vandora: visibleClientIds = ett id per foremal som syns pa skarmen (samma id kan finnas flera ganger).
+// For varje foremals-ambient raknas hur manga som syns, och ljudet med hogst "count" som uppfylls loopas.
+void SoundManager::updateItemAmbients(const std::vector<uint32_t>& visibleClientIds)
+{
+    const auto& channel = getChannel(2); // SoundChannels.Ambient
+    if (!isAudioEnabled() || !channel->isEnabled() || channel->getGain() <= 0.0f) {
+        stopItemAmbients();
+        return;
+    }
+
+    std::unordered_map<uint32_t, uint32_t> counts;
+    for (const uint32_t id : visibleClientIds) {
+        ++counts[id];
+    }
+
+    std::map<uint32_t, uint32_t> wanted; // ambient-id -> ljudfil-id
+    for (const auto& [ambientId, ambient] : m_clientItemAmbientEffects) {
+        uint32_t total = 0;
+        for (const uint32_t clientId : ambient.clientIds) {
+            const auto c = counts.find(clientId);
+            if (c != counts.end())
+                total += c->second;
+        }
+        if (total == 0)
+            continue;
+        uint32_t bestCount = 0;
+        uint32_t bestAudio = 0;
+        for (const auto& [audioId, needed] : ambient.itemCountSoundEffects) {
+            if (total >= needed && needed >= bestCount) {
+                bestCount = needed;
+                bestAudio = audioId;
+            }
+        }
+        if (bestAudio != 0)
+            wanted[ambientId] = bestAudio;
+    }
+
+    // stoppa ljud som inte ska finnas langre
+    for (auto it = m_itemAmbientSources.begin(); it != m_itemAmbientSources.end();) {
+        const auto w = wanted.find(it->first);
+        if (w == wanted.end() || w->second != it->second.first || !it->second.second || !it->second.second->isPlaying()) {
+            if (it->second.second)
+                it->second.second->setFading(StreamSoundSource::FadingOff, 1.0f);
+            it = m_itemAmbientSources.erase(it);
+        } else {
+            it->second.second->setGain(channel->getGain());
+            ++it;
+        }
+    }
+
+    // starta nya
+    for (const auto& [ambientId, audioId] : wanted) {
+        if (m_itemAmbientSources.contains(ambientId))
+            continue;
+        const auto& fileName = getAudioFileNameById(audioId);
+        if (fileName.empty())
+            continue;
+        const auto& source = play(m_clientSoundsDir + fileName, 1.0f, channel->getGain(), 1.0f);
+        if (source) {
+            source->setLooping(true);
+            m_itemAmbientSources[ambientId] = { audioId, source };
+        }
+    }
 }
 
 std::string SoundManager::getAudioFileNameById(int32_t audioFileId)

@@ -441,9 +441,13 @@ void Game::processOpenOutfitWindow(const Outfit& currentOutfit, const std::vecto
     g_lua.callGlobalField("g_game", "onOpenOutfitWindow", virtualOutfitCreature, outfitList, virtualMountCreature, mountList, familiarList, wingsList, aurasList, effectList, shaderList);
 }
 
-void Game::processOpenNpcTrade(const std::vector<std::tuple<ItemPtr, std::string, uint32_t, uint32_t, uint32_t>>& items)
+void Game::processOpenNpcTrade(const std::vector<std::tuple<ItemPtr, std::string, uint32_t, uint32_t, uint32_t>>& items, const uint16_t currencyId, const std::string& currencyName)
 {
-    g_lua.callGlobalField("g_game", "onOpenNpcTrade", items);
+    // Vandora: skicka vidare NPC:ns valuta (t.ex. cursed gold) till trade-fonstret
+    if (currencyId != 0)
+        g_lua.callGlobalField("g_game", "onOpenNpcTrade", items, currencyId, currencyName);
+    else
+        g_lua.callGlobalField("g_game", "onOpenNpcTrade", items);
 }
 
 void Game::processPlayerGoods(const uint64_t money, const std::vector<std::tuple<ItemPtr, uint16_t>>& goods)

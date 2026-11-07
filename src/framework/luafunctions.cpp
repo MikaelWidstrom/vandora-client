@@ -1106,6 +1106,14 @@ void Application::registerLuaFunctions()
     g_lua.bindSingletonFunction("g_sounds", "isEaxEnabled", &SoundManager::isEaxEnabled, &g_sounds);
     g_lua.bindSingletonFunction("g_sounds", "loadClientFiles", &SoundManager::loadClientFiles, &g_sounds);
     g_lua.bindSingletonFunction("g_sounds", "getAudioFileNameById", &SoundManager::getAudioFileNameById, &g_sounds);
+    // Vandora
+    g_lua.bindSingletonFunction("g_sounds", "setEffectSourceEnabled", &SoundManager::setEffectSourceEnabled, &g_sounds);
+    g_lua.bindSingletonFunction("g_sounds", "isEffectSourceEnabled", &SoundManager::isEffectSourceEnabled, &g_sounds);
+    g_lua.bindSingletonFunction("g_sounds", "playClientAmbient", &SoundManager::playClientAmbient, &g_sounds);
+    g_lua.bindSingletonFunction("g_sounds", "playClientMusic", &SoundManager::playClientMusic, &g_sounds);
+    g_lua.bindSingletonFunction("g_sounds", "getItemAmbientClientIds", &SoundManager::getItemAmbientClientIds, &g_sounds);
+    g_lua.bindSingletonFunction("g_sounds", "updateItemAmbients", &SoundManager::updateItemAmbients, &g_sounds);
+    g_lua.bindSingletonFunction("g_sounds", "stopItemAmbients", &SoundManager::stopItemAmbients, &g_sounds);
 
     g_lua.registerClass<SoundSource>();
     g_lua.bindClassStaticFunction<SoundSource>("create", [] { return std::make_shared<SoundSource>(); });

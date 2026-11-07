@@ -137,7 +137,17 @@ public:
     bool loadClientFiles(const std::string& directory);
     std::string getAudioFileNameById(int32_t audioFileId);
     // Vandora: spela en ljudeffekt fran Tibias ljudbank (id fran servern), gain 0-1
-    void playClientSoundEffect(uint32_t effectId, float gain = 1.0f);
+    // source: 0 = globalt, 1 = egna, 2 = andra spelare, 3 = monster
+    void playClientSoundEffect(uint32_t effectId, float gain = 1.0f, uint8_t source = 0);
+    void setEffectSourceEnabled(int source, bool enabled);
+    bool isEffectSourceEnabled(int source);
+    // Vandora: omradesljud (ambient) och musik som servern skickar (0 = tyst)
+    void playClientAmbient(uint32_t ambientId);
+    void playClientMusic(uint32_t musicId);
+    // Vandora: ljud fran foremal pa skarmen (vattenfall, eld ...)
+    std::vector<uint32_t> getItemAmbientClientIds();
+    void updateItemAmbients(const std::vector<uint32_t>& visibleClientIds);
+    void stopItemAmbients();
 
     void preload(std::string filename);
     SoundSourcePtr play(const std::string& filename, float fadetime = 0, float gain = 0, float pitch = 0);
@@ -168,6 +178,14 @@ private:
     std::map<uint32_t, ClientItemAmbient> m_clientItemAmbientEffects;
     std::map<uint32_t, ClientMusic> m_clientMusic;
     std::string m_clientSoundsDir;
+
+    // Vandora
+    bool m_effectSourceEnabled[4]{ true, true, true, true };
+    uint32_t m_currentAmbientId{ 0 };
+    uint32_t m_currentMusicId{ 0 };
+    std::vector<std::pair<uint32_t, ticks_t>> m_ambientDelayed; // effekt-id, nasta gang
+    std::vector<uint32_t> m_ambientDelayedInterval; // sekunder
+    std::map<uint32_t, std::pair<uint32_t, SoundSourcePtr>> m_itemAmbientSources; // ambient-id -> (ljudfil-id, kalla)
 
     std::vector<SoundSourcePtr> m_sources;
     bool m_audioEnabled{ true };
