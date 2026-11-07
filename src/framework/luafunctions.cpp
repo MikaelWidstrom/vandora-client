@@ -1109,6 +1109,7 @@ void Application::registerLuaFunctions()
     // Vandora
     g_lua.bindSingletonFunction("g_sounds", "setEffectSourceEnabled", &SoundManager::setEffectSourceEnabled, &g_sounds);
     g_lua.bindSingletonFunction("g_sounds", "isEffectSourceEnabled", &SoundManager::isEffectSourceEnabled, &g_sounds);
+    g_lua.bindSingletonFunction("g_sounds", "setSpellSoundGain", &SoundManager::setSpellSoundGain, &g_sounds);
     g_lua.bindSingletonFunction("g_sounds", "playClientAmbient", &SoundManager::playClientAmbient, &g_sounds);
     g_lua.bindSingletonFunction("g_sounds", "playClientMusic", &SoundManager::playClientMusic, &g_sounds);
     g_lua.bindSingletonFunction("g_sounds", "getItemAmbientClientIds", &SoundManager::getItemAmbientClientIds, &g_sounds);

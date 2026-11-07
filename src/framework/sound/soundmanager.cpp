@@ -600,6 +600,11 @@ void SoundManager::playClientSoundEffect(const uint32_t effectId, const float ga
     }
 
     float volume = effect.volumeMax > 0.0f ? effect.volumeMax : 1.0f;
+    // Vandora: spell-ljud har en egen volym
+    if (effect.type == NUMERIC_SOUND_TYPE_SPELL_ATTACK || effect.type == NUMERIC_SOUND_TYPE_SPELL_HEALING
+        || effect.type == NUMERIC_SOUND_TYPE_SPELL_SUPPORT || effect.type == NUMERIC_SOUND_TYPE_SPELL_GENERIC) {
+        volume *= m_spellGain;
+    }
     volume = std::clamp(volume * gain * channel->getGain(), 0.0f, 1.0f);
     if (volume <= 0.01f)
         return;

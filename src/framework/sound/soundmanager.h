@@ -140,6 +140,7 @@ public:
     // source: 0 = globalt, 1 = egna, 2 = andra spelare, 3 = monster
     void playClientSoundEffect(uint32_t effectId, float gain = 1.0f, uint8_t source = 0);
     void setEffectSourceEnabled(int source, bool enabled);
+    void setSpellSoundGain(float gain) { m_spellGain = std::clamp(gain, 0.0f, 1.0f); } // Vandora: volym for spell-ljud 0-1
     bool isEffectSourceEnabled(int source);
     // Vandora: omradesljud (ambient) och musik som servern skickar (0 = tyst)
     void playClientAmbient(uint32_t ambientId);
@@ -181,6 +182,7 @@ private:
 
     // Vandora
     bool m_effectSourceEnabled[4]{ true, true, true, true };
+    float m_spellGain{ 1.0f };
     uint32_t m_currentAmbientId{ 0 };
     uint32_t m_currentMusicId{ 0 };
     std::vector<std::pair<uint32_t, ticks_t>> m_ambientDelayed; // effekt-id, nasta gang
